@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/albe2669/spotify-viewer/generated"
 	"github.com/albe2669/spotify-viewer/resolver"
@@ -12,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap"
 
+	"github.com/albe2669/spotify-viewer/lib/playerstate"
 	spotifyLib "github.com/albe2669/spotify-viewer/lib/spotify"
 )
 
@@ -36,12 +39,16 @@ func configureLogger(e *echo.Echo) {
 	}))
 }
 
-func graphqlServer() *handler.Server {
+func graphqlServer(playerStateHandler *playerstate.Handler) *handler.Server {
 	server := handler.NewDefaultServer(
 		generated.NewExecutableSchema(
-			generated.Config{Resolvers: &resolver.Resolver{}},
+			generated.Config{Resolvers: &resolver.Resolver{
+				PlayerStateHandler: playerStateHandler,
+			}},
 		),
 	)
+
+	server.AddTransport(&transport.Websocket{})
 
 	return server
 }
@@ -79,8 +86,24 @@ func main() {
 		utils.Logger.Fatal("failed reading config", zap.Error(err))
 	}
 
-	graphqlServer := graphqlServer()
+	// playerStateHandler
+	playerStateHandler := playerstate.NewHandler()
+
+	graphqlServer := graphqlServer(playerStateHandler)
 	e := httpServer(graphqlServer)
+
+	go func() {
+		for {
+			currTime := new(int)
+			*currTime = int(time.Now().UTC().Unix())
+
+			playerStateHandler.Broadcast(&generated.PlayerState{
+				Time: currTime,
+			})
+
+			time.Sleep(1 * time.Second)
+		}
+	}()
 
 	spotify := spotifyLib.NewSpotify(config)
 	spotify.SetupRoutes(e)

@@ -1,0 +1,7 @@
+type PlayerState {
+  time: Int
+}
+
+extend type Subscription {
+  playerState: PlayerState!
+}
