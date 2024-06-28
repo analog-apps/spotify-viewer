@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/albe2669/spotify-viewer/ent/predicate"
-	"github.com/albe2669/spotify-viewer/ent/settings"
+	"github.com/albe2669/spotify-viewer/ent/schema/pulid"
+	"github.com/albe2669/spotify-viewer/ent/track"
 )
 
 const (
@@ -23,34 +25,45 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeSettings = "Settings"
+	TypeTrack = "Track"
 )
 
-// SettingsMutation represents an operation that mutates the Settings nodes in the graph.
-type SettingsMutation struct {
+// TrackMutation represents an operation that mutates the Track nodes in the graph.
+type TrackMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	key           *string
-	value         *string
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Settings, error)
-	predicates    []predicate.Settings
+	op                   Op
+	typ                  string
+	id                   *pulid.ID
+	created_at           *time.Time
+	updated_at           *time.Time
+	track_id             *pulid.ID
+	name                 *string
+	artists              *[]string
+	appendartists        []string
+	artists_genres       *[]string
+	appendartists_genres []string
+	album_name           *string
+	album_image_uri      *string
+	duration_ms          *int32
+	addduration_ms       *int32
+	uri                  *string
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*Track, error)
+	predicates           []predicate.Track
 }
 
-var _ ent.Mutation = (*SettingsMutation)(nil)
+var _ ent.Mutation = (*TrackMutation)(nil)
 
-// settingsOption allows management of the mutation configuration using functional options.
-type settingsOption func(*SettingsMutation)
+// trackOption allows management of the mutation configuration using functional options.
+type trackOption func(*TrackMutation)
 
-// newSettingsMutation creates new mutation for the Settings entity.
-func newSettingsMutation(c config, op Op, opts ...settingsOption) *SettingsMutation {
-	m := &SettingsMutation{
+// newTrackMutation creates new mutation for the Track entity.
+func newTrackMutation(c config, op Op, opts ...trackOption) *TrackMutation {
+	m := &TrackMutation{
 		config:        c,
 		op:            op,
-		typ:           TypeSettings,
+		typ:           TypeTrack,
 		clearedFields: make(map[string]struct{}),
 	}
 	for _, opt := range opts {
@@ -59,20 +72,20 @@ func newSettingsMutation(c config, op Op, opts ...settingsOption) *SettingsMutat
 	return m
 }
 
-// withSettingsID sets the ID field of the mutation.
-func withSettingsID(id int) settingsOption {
-	return func(m *SettingsMutation) {
+// withTrackID sets the ID field of the mutation.
+func withTrackID(id pulid.ID) trackOption {
+	return func(m *TrackMutation) {
 		var (
 			err   error
 			once  sync.Once
-			value *Settings
+			value *Track
 		)
-		m.oldValue = func(ctx context.Context) (*Settings, error) {
+		m.oldValue = func(ctx context.Context) (*Track, error) {
 			once.Do(func() {
 				if m.done {
 					err = errors.New("querying old values post mutation is not allowed")
 				} else {
-					value, err = m.Client().Settings.Get(ctx, id)
+					value, err = m.Client().Track.Get(ctx, id)
 				}
 			})
 			return value, err
@@ -81,10 +94,10 @@ func withSettingsID(id int) settingsOption {
 	}
 }
 
-// withSettings sets the old Settings of the mutation.
-func withSettings(node *Settings) settingsOption {
-	return func(m *SettingsMutation) {
-		m.oldValue = func(context.Context) (*Settings, error) {
+// withTrack sets the old Track of the mutation.
+func withTrack(node *Track) trackOption {
+	return func(m *TrackMutation) {
+		m.oldValue = func(context.Context) (*Track, error) {
 			return node, nil
 		}
 		m.id = &node.ID
@@ -93,7 +106,7 @@ func withSettings(node *Settings) settingsOption {
 
 // Client returns a new `ent.Client` from the mutation. If the mutation was
 // executed in a transaction (ent.Tx), a transactional client is returned.
-func (m SettingsMutation) Client() *Client {
+func (m TrackMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
@@ -101,7 +114,7 @@ func (m SettingsMutation) Client() *Client {
 
 // Tx returns an `ent.Tx` for mutations that were executed in transactions;
 // it returns an error otherwise.
-func (m SettingsMutation) Tx() (*Tx, error) {
+func (m TrackMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -110,9 +123,15 @@ func (m SettingsMutation) Tx() (*Tx, error) {
 	return tx, nil
 }
 
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Track entities.
+func (m *TrackMutation) SetID(id pulid.ID) {
+	m.id = &id
+}
+
 // ID returns the ID value in the mutation. Note that the ID is only available
 // if it was provided to the builder or after it was returned from the database.
-func (m *SettingsMutation) ID() (id int, exists bool) {
+func (m *TrackMutation) ID() (id pulid.ID, exists bool) {
 	if m.id == nil {
 		return
 	}
@@ -123,102 +142,440 @@ func (m *SettingsMutation) ID() (id int, exists bool) {
 // That means, if the mutation is applied within a transaction with an isolation level such
 // as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
 // or updated by the mutation.
-func (m *SettingsMutation) IDs(ctx context.Context) ([]int, error) {
+func (m *TrackMutation) IDs(ctx context.Context) ([]pulid.ID, error) {
 	switch {
 	case m.op.Is(OpUpdateOne | OpDeleteOne):
 		id, exists := m.ID()
 		if exists {
-			return []int{id}, nil
+			return []pulid.ID{id}, nil
 		}
 		fallthrough
 	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().Settings.Query().Where(m.predicates...).IDs(ctx)
+		return m.Client().Track.Query().Where(m.predicates...).IDs(ctx)
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
 }
 
-// SetKey sets the "key" field.
-func (m *SettingsMutation) SetKey(s string) {
-	m.key = &s
+// SetCreatedAt sets the "created_at" field.
+func (m *TrackMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
 }
 
-// Key returns the value of the "key" field in the mutation.
-func (m *SettingsMutation) Key() (r string, exists bool) {
-	v := m.key
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *TrackMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldKey returns the old "key" field's value of the Settings entity.
-// If the Settings object wasn't provided to the builder, the object is fetched from the database.
+// OldCreatedAt returns the old "created_at" field's value of the Track entity.
+// If the Track object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SettingsMutation) OldKey(ctx context.Context) (v string, err error) {
+func (m *TrackMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldKey is only allowed on UpdateOne operations")
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldKey requires an ID field in the mutation")
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldKey: %w", err)
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
 	}
-	return oldValue.Key, nil
+	return oldValue.CreatedAt, nil
 }
 
-// ResetKey resets all changes to the "key" field.
-func (m *SettingsMutation) ResetKey() {
-	m.key = nil
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *TrackMutation) ResetCreatedAt() {
+	m.created_at = nil
 }
 
-// SetValue sets the "value" field.
-func (m *SettingsMutation) SetValue(s string) {
-	m.value = &s
+// SetUpdatedAt sets the "updated_at" field.
+func (m *TrackMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
 }
 
-// Value returns the value of the "value" field in the mutation.
-func (m *SettingsMutation) Value() (r string, exists bool) {
-	v := m.value
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *TrackMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldValue returns the old "value" field's value of the Settings entity.
-// If the Settings object wasn't provided to the builder, the object is fetched from the database.
+// OldUpdatedAt returns the old "updated_at" field's value of the Track entity.
+// If the Track object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SettingsMutation) OldValue(ctx context.Context) (v string, err error) {
+func (m *TrackMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldValue is only allowed on UpdateOne operations")
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldValue requires an ID field in the mutation")
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldValue: %w", err)
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
 	}
-	return oldValue.Value, nil
+	return oldValue.UpdatedAt, nil
 }
 
-// ResetValue resets all changes to the "value" field.
-func (m *SettingsMutation) ResetValue() {
-	m.value = nil
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *TrackMutation) ResetUpdatedAt() {
+	m.updated_at = nil
 }
 
-// Where appends a list predicates to the SettingsMutation builder.
-func (m *SettingsMutation) Where(ps ...predicate.Settings) {
+// SetTrackID sets the "track_id" field.
+func (m *TrackMutation) SetTrackID(pu pulid.ID) {
+	m.track_id = &pu
+}
+
+// TrackID returns the value of the "track_id" field in the mutation.
+func (m *TrackMutation) TrackID() (r pulid.ID, exists bool) {
+	v := m.track_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTrackID returns the old "track_id" field's value of the Track entity.
+// If the Track object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TrackMutation) OldTrackID(ctx context.Context) (v pulid.ID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTrackID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTrackID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTrackID: %w", err)
+	}
+	return oldValue.TrackID, nil
+}
+
+// ResetTrackID resets all changes to the "track_id" field.
+func (m *TrackMutation) ResetTrackID() {
+	m.track_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *TrackMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *TrackMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the Track entity.
+// If the Track object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TrackMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *TrackMutation) ResetName() {
+	m.name = nil
+}
+
+// SetArtists sets the "artists" field.
+func (m *TrackMutation) SetArtists(s []string) {
+	m.artists = &s
+	m.appendartists = nil
+}
+
+// Artists returns the value of the "artists" field in the mutation.
+func (m *TrackMutation) Artists() (r []string, exists bool) {
+	v := m.artists
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArtists returns the old "artists" field's value of the Track entity.
+// If the Track object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TrackMutation) OldArtists(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArtists is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArtists requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArtists: %w", err)
+	}
+	return oldValue.Artists, nil
+}
+
+// AppendArtists adds s to the "artists" field.
+func (m *TrackMutation) AppendArtists(s []string) {
+	m.appendartists = append(m.appendartists, s...)
+}
+
+// AppendedArtists returns the list of values that were appended to the "artists" field in this mutation.
+func (m *TrackMutation) AppendedArtists() ([]string, bool) {
+	if len(m.appendartists) == 0 {
+		return nil, false
+	}
+	return m.appendartists, true
+}
+
+// ResetArtists resets all changes to the "artists" field.
+func (m *TrackMutation) ResetArtists() {
+	m.artists = nil
+	m.appendartists = nil
+}
+
+// SetArtistsGenres sets the "artists_genres" field.
+func (m *TrackMutation) SetArtistsGenres(s []string) {
+	m.artists_genres = &s
+	m.appendartists_genres = nil
+}
+
+// ArtistsGenres returns the value of the "artists_genres" field in the mutation.
+func (m *TrackMutation) ArtistsGenres() (r []string, exists bool) {
+	v := m.artists_genres
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArtistsGenres returns the old "artists_genres" field's value of the Track entity.
+// If the Track object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TrackMutation) OldArtistsGenres(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArtistsGenres is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArtistsGenres requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArtistsGenres: %w", err)
+	}
+	return oldValue.ArtistsGenres, nil
+}
+
+// AppendArtistsGenres adds s to the "artists_genres" field.
+func (m *TrackMutation) AppendArtistsGenres(s []string) {
+	m.appendartists_genres = append(m.appendartists_genres, s...)
+}
+
+// AppendedArtistsGenres returns the list of values that were appended to the "artists_genres" field in this mutation.
+func (m *TrackMutation) AppendedArtistsGenres() ([]string, bool) {
+	if len(m.appendartists_genres) == 0 {
+		return nil, false
+	}
+	return m.appendartists_genres, true
+}
+
+// ResetArtistsGenres resets all changes to the "artists_genres" field.
+func (m *TrackMutation) ResetArtistsGenres() {
+	m.artists_genres = nil
+	m.appendartists_genres = nil
+}
+
+// SetAlbumName sets the "album_name" field.
+func (m *TrackMutation) SetAlbumName(s string) {
+	m.album_name = &s
+}
+
+// AlbumName returns the value of the "album_name" field in the mutation.
+func (m *TrackMutation) AlbumName() (r string, exists bool) {
+	v := m.album_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAlbumName returns the old "album_name" field's value of the Track entity.
+// If the Track object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TrackMutation) OldAlbumName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAlbumName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAlbumName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAlbumName: %w", err)
+	}
+	return oldValue.AlbumName, nil
+}
+
+// ResetAlbumName resets all changes to the "album_name" field.
+func (m *TrackMutation) ResetAlbumName() {
+	m.album_name = nil
+}
+
+// SetAlbumImageURI sets the "album_image_uri" field.
+func (m *TrackMutation) SetAlbumImageURI(s string) {
+	m.album_image_uri = &s
+}
+
+// AlbumImageURI returns the value of the "album_image_uri" field in the mutation.
+func (m *TrackMutation) AlbumImageURI() (r string, exists bool) {
+	v := m.album_image_uri
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAlbumImageURI returns the old "album_image_uri" field's value of the Track entity.
+// If the Track object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TrackMutation) OldAlbumImageURI(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAlbumImageURI is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAlbumImageURI requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAlbumImageURI: %w", err)
+	}
+	return oldValue.AlbumImageURI, nil
+}
+
+// ResetAlbumImageURI resets all changes to the "album_image_uri" field.
+func (m *TrackMutation) ResetAlbumImageURI() {
+	m.album_image_uri = nil
+}
+
+// SetDurationMs sets the "duration_ms" field.
+func (m *TrackMutation) SetDurationMs(i int32) {
+	m.duration_ms = &i
+	m.addduration_ms = nil
+}
+
+// DurationMs returns the value of the "duration_ms" field in the mutation.
+func (m *TrackMutation) DurationMs() (r int32, exists bool) {
+	v := m.duration_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDurationMs returns the old "duration_ms" field's value of the Track entity.
+// If the Track object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TrackMutation) OldDurationMs(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDurationMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDurationMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDurationMs: %w", err)
+	}
+	return oldValue.DurationMs, nil
+}
+
+// AddDurationMs adds i to the "duration_ms" field.
+func (m *TrackMutation) AddDurationMs(i int32) {
+	if m.addduration_ms != nil {
+		*m.addduration_ms += i
+	} else {
+		m.addduration_ms = &i
+	}
+}
+
+// AddedDurationMs returns the value that was added to the "duration_ms" field in this mutation.
+func (m *TrackMutation) AddedDurationMs() (r int32, exists bool) {
+	v := m.addduration_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDurationMs resets all changes to the "duration_ms" field.
+func (m *TrackMutation) ResetDurationMs() {
+	m.duration_ms = nil
+	m.addduration_ms = nil
+}
+
+// SetURI sets the "uri" field.
+func (m *TrackMutation) SetURI(s string) {
+	m.uri = &s
+}
+
+// URI returns the value of the "uri" field in the mutation.
+func (m *TrackMutation) URI() (r string, exists bool) {
+	v := m.uri
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldURI returns the old "uri" field's value of the Track entity.
+// If the Track object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TrackMutation) OldURI(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldURI is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldURI requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldURI: %w", err)
+	}
+	return oldValue.URI, nil
+}
+
+// ResetURI resets all changes to the "uri" field.
+func (m *TrackMutation) ResetURI() {
+	m.uri = nil
+}
+
+// Where appends a list predicates to the TrackMutation builder.
+func (m *TrackMutation) Where(ps ...predicate.Track) {
 	m.predicates = append(m.predicates, ps...)
 }
 
-// WhereP appends storage-level predicates to the SettingsMutation builder. Using this method,
+// WhereP appends storage-level predicates to the TrackMutation builder. Using this method,
 // users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *SettingsMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.Settings, len(ps))
+func (m *TrackMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Track, len(ps))
 	for i := range ps {
 		p[i] = ps[i]
 	}
@@ -226,30 +583,54 @@ func (m *SettingsMutation) WhereP(ps ...func(*sql.Selector)) {
 }
 
 // Op returns the operation name.
-func (m *SettingsMutation) Op() Op {
+func (m *TrackMutation) Op() Op {
 	return m.op
 }
 
 // SetOp allows setting the mutation operation.
-func (m *SettingsMutation) SetOp(op Op) {
+func (m *TrackMutation) SetOp(op Op) {
 	m.op = op
 }
 
-// Type returns the node type of this mutation (Settings).
-func (m *SettingsMutation) Type() string {
+// Type returns the node type of this mutation (Track).
+func (m *TrackMutation) Type() string {
 	return m.typ
 }
 
 // Fields returns all fields that were changed during this mutation. Note that in
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
-func (m *SettingsMutation) Fields() []string {
-	fields := make([]string, 0, 2)
-	if m.key != nil {
-		fields = append(fields, settings.FieldKey)
+func (m *TrackMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.created_at != nil {
+		fields = append(fields, track.FieldCreatedAt)
 	}
-	if m.value != nil {
-		fields = append(fields, settings.FieldValue)
+	if m.updated_at != nil {
+		fields = append(fields, track.FieldUpdatedAt)
+	}
+	if m.track_id != nil {
+		fields = append(fields, track.FieldTrackID)
+	}
+	if m.name != nil {
+		fields = append(fields, track.FieldName)
+	}
+	if m.artists != nil {
+		fields = append(fields, track.FieldArtists)
+	}
+	if m.artists_genres != nil {
+		fields = append(fields, track.FieldArtistsGenres)
+	}
+	if m.album_name != nil {
+		fields = append(fields, track.FieldAlbumName)
+	}
+	if m.album_image_uri != nil {
+		fields = append(fields, track.FieldAlbumImageURI)
+	}
+	if m.duration_ms != nil {
+		fields = append(fields, track.FieldDurationMs)
+	}
+	if m.uri != nil {
+		fields = append(fields, track.FieldURI)
 	}
 	return fields
 }
@@ -257,12 +638,28 @@ func (m *SettingsMutation) Fields() []string {
 // Field returns the value of a field with the given name. The second boolean
 // return value indicates that this field was not set, or was not defined in the
 // schema.
-func (m *SettingsMutation) Field(name string) (ent.Value, bool) {
+func (m *TrackMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case settings.FieldKey:
-		return m.Key()
-	case settings.FieldValue:
-		return m.Value()
+	case track.FieldCreatedAt:
+		return m.CreatedAt()
+	case track.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case track.FieldTrackID:
+		return m.TrackID()
+	case track.FieldName:
+		return m.Name()
+	case track.FieldArtists:
+		return m.Artists()
+	case track.FieldArtistsGenres:
+		return m.ArtistsGenres()
+	case track.FieldAlbumName:
+		return m.AlbumName()
+	case track.FieldAlbumImageURI:
+		return m.AlbumImageURI()
+	case track.FieldDurationMs:
+		return m.DurationMs()
+	case track.FieldURI:
+		return m.URI()
 	}
 	return nil, false
 }
@@ -270,138 +667,249 @@ func (m *SettingsMutation) Field(name string) (ent.Value, bool) {
 // OldField returns the old value of the field from the database. An error is
 // returned if the mutation operation is not UpdateOne, or the query to the
 // database failed.
-func (m *SettingsMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+func (m *TrackMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case settings.FieldKey:
-		return m.OldKey(ctx)
-	case settings.FieldValue:
-		return m.OldValue(ctx)
+	case track.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case track.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case track.FieldTrackID:
+		return m.OldTrackID(ctx)
+	case track.FieldName:
+		return m.OldName(ctx)
+	case track.FieldArtists:
+		return m.OldArtists(ctx)
+	case track.FieldArtistsGenres:
+		return m.OldArtistsGenres(ctx)
+	case track.FieldAlbumName:
+		return m.OldAlbumName(ctx)
+	case track.FieldAlbumImageURI:
+		return m.OldAlbumImageURI(ctx)
+	case track.FieldDurationMs:
+		return m.OldDurationMs(ctx)
+	case track.FieldURI:
+		return m.OldURI(ctx)
 	}
-	return nil, fmt.Errorf("unknown Settings field %s", name)
+	return nil, fmt.Errorf("unknown Track field %s", name)
 }
 
 // SetField sets the value of a field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *SettingsMutation) SetField(name string, value ent.Value) error {
+func (m *TrackMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case settings.FieldKey:
-		v, ok := value.(string)
+	case track.FieldCreatedAt:
+		v, ok := value.(time.Time)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetKey(v)
+		m.SetCreatedAt(v)
 		return nil
-	case settings.FieldValue:
+	case track.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case track.FieldTrackID:
+		v, ok := value.(pulid.ID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTrackID(v)
+		return nil
+	case track.FieldName:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetValue(v)
+		m.SetName(v)
+		return nil
+	case track.FieldArtists:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArtists(v)
+		return nil
+	case track.FieldArtistsGenres:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArtistsGenres(v)
+		return nil
+	case track.FieldAlbumName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAlbumName(v)
+		return nil
+	case track.FieldAlbumImageURI:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAlbumImageURI(v)
+		return nil
+	case track.FieldDurationMs:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDurationMs(v)
+		return nil
+	case track.FieldURI:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetURI(v)
 		return nil
 	}
-	return fmt.Errorf("unknown Settings field %s", name)
+	return fmt.Errorf("unknown Track field %s", name)
 }
 
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
-func (m *SettingsMutation) AddedFields() []string {
-	return nil
+func (m *TrackMutation) AddedFields() []string {
+	var fields []string
+	if m.addduration_ms != nil {
+		fields = append(fields, track.FieldDurationMs)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
-func (m *SettingsMutation) AddedField(name string) (ent.Value, bool) {
+func (m *TrackMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case track.FieldDurationMs:
+		return m.AddedDurationMs()
+	}
 	return nil, false
 }
 
 // AddField adds the value to the field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *SettingsMutation) AddField(name string, value ent.Value) error {
+func (m *TrackMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case track.FieldDurationMs:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDurationMs(v)
+		return nil
 	}
-	return fmt.Errorf("unknown Settings numeric field %s", name)
+	return fmt.Errorf("unknown Track numeric field %s", name)
 }
 
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
-func (m *SettingsMutation) ClearedFields() []string {
+func (m *TrackMutation) ClearedFields() []string {
 	return nil
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
 // cleared in this mutation.
-func (m *SettingsMutation) FieldCleared(name string) bool {
+func (m *TrackMutation) FieldCleared(name string) bool {
 	_, ok := m.clearedFields[name]
 	return ok
 }
 
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
-func (m *SettingsMutation) ClearField(name string) error {
-	return fmt.Errorf("unknown Settings nullable field %s", name)
+func (m *TrackMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Track nullable field %s", name)
 }
 
 // ResetField resets all changes in the mutation for the field with the given name.
 // It returns an error if the field is not defined in the schema.
-func (m *SettingsMutation) ResetField(name string) error {
+func (m *TrackMutation) ResetField(name string) error {
 	switch name {
-	case settings.FieldKey:
-		m.ResetKey()
+	case track.FieldCreatedAt:
+		m.ResetCreatedAt()
 		return nil
-	case settings.FieldValue:
-		m.ResetValue()
+	case track.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case track.FieldTrackID:
+		m.ResetTrackID()
+		return nil
+	case track.FieldName:
+		m.ResetName()
+		return nil
+	case track.FieldArtists:
+		m.ResetArtists()
+		return nil
+	case track.FieldArtistsGenres:
+		m.ResetArtistsGenres()
+		return nil
+	case track.FieldAlbumName:
+		m.ResetAlbumName()
+		return nil
+	case track.FieldAlbumImageURI:
+		m.ResetAlbumImageURI()
+		return nil
+	case track.FieldDurationMs:
+		m.ResetDurationMs()
+		return nil
+	case track.FieldURI:
+		m.ResetURI()
 		return nil
 	}
-	return fmt.Errorf("unknown Settings field %s", name)
+	return fmt.Errorf("unknown Track field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
-func (m *SettingsMutation) AddedEdges() []string {
+func (m *TrackMutation) AddedEdges() []string {
 	edges := make([]string, 0, 0)
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
-func (m *SettingsMutation) AddedIDs(name string) []ent.Value {
+func (m *TrackMutation) AddedIDs(name string) []ent.Value {
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
-func (m *SettingsMutation) RemovedEdges() []string {
+func (m *TrackMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 0)
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
-func (m *SettingsMutation) RemovedIDs(name string) []ent.Value {
+func (m *TrackMutation) RemovedIDs(name string) []ent.Value {
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *SettingsMutation) ClearedEdges() []string {
+func (m *TrackMutation) ClearedEdges() []string {
 	edges := make([]string, 0, 0)
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
-func (m *SettingsMutation) EdgeCleared(name string) bool {
+func (m *TrackMutation) EdgeCleared(name string) bool {
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
-func (m *SettingsMutation) ClearEdge(name string) error {
-	return fmt.Errorf("unknown Settings unique edge %s", name)
+func (m *TrackMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Track unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
-func (m *SettingsMutation) ResetEdge(name string) error {
-	return fmt.Errorf("unknown Settings edge %s", name)
+func (m *TrackMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Track edge %s", name)
 }

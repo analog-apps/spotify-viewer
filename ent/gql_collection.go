@@ -6,39 +6,79 @@ import (
 	"context"
 
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/albe2669/spotify-viewer/ent/settings"
+	"github.com/albe2669/spotify-viewer/ent/track"
 )
 
 // CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
-func (s *SettingsQuery) CollectFields(ctx context.Context, satisfies ...string) (*SettingsQuery, error) {
+func (t *TrackQuery) CollectFields(ctx context.Context, satisfies ...string) (*TrackQuery, error) {
 	fc := graphql.GetFieldContext(ctx)
 	if fc == nil {
-		return s, nil
+		return t, nil
 	}
-	if err := s.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+	if err := t.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
 		return nil, err
 	}
-	return s, nil
+	return t, nil
 }
 
-func (s *SettingsQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+func (t *TrackQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
 	path = append([]string(nil), path...)
 	var (
 		unknownSeen    bool
-		fieldSeen      = make(map[string]struct{}, len(settings.Columns))
-		selectedFields = []string{settings.FieldID}
+		fieldSeen      = make(map[string]struct{}, len(track.Columns))
+		selectedFields = []string{track.FieldID}
 	)
 	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
 		switch field.Name {
-		case "key":
-			if _, ok := fieldSeen[settings.FieldKey]; !ok {
-				selectedFields = append(selectedFields, settings.FieldKey)
-				fieldSeen[settings.FieldKey] = struct{}{}
+		case "createdAt":
+			if _, ok := fieldSeen[track.FieldCreatedAt]; !ok {
+				selectedFields = append(selectedFields, track.FieldCreatedAt)
+				fieldSeen[track.FieldCreatedAt] = struct{}{}
 			}
-		case "value":
-			if _, ok := fieldSeen[settings.FieldValue]; !ok {
-				selectedFields = append(selectedFields, settings.FieldValue)
-				fieldSeen[settings.FieldValue] = struct{}{}
+		case "updatedAt":
+			if _, ok := fieldSeen[track.FieldUpdatedAt]; !ok {
+				selectedFields = append(selectedFields, track.FieldUpdatedAt)
+				fieldSeen[track.FieldUpdatedAt] = struct{}{}
+			}
+		case "trackID":
+			if _, ok := fieldSeen[track.FieldTrackID]; !ok {
+				selectedFields = append(selectedFields, track.FieldTrackID)
+				fieldSeen[track.FieldTrackID] = struct{}{}
+			}
+		case "name":
+			if _, ok := fieldSeen[track.FieldName]; !ok {
+				selectedFields = append(selectedFields, track.FieldName)
+				fieldSeen[track.FieldName] = struct{}{}
+			}
+		case "artists":
+			if _, ok := fieldSeen[track.FieldArtists]; !ok {
+				selectedFields = append(selectedFields, track.FieldArtists)
+				fieldSeen[track.FieldArtists] = struct{}{}
+			}
+		case "artistsGenres":
+			if _, ok := fieldSeen[track.FieldArtistsGenres]; !ok {
+				selectedFields = append(selectedFields, track.FieldArtistsGenres)
+				fieldSeen[track.FieldArtistsGenres] = struct{}{}
+			}
+		case "albumName":
+			if _, ok := fieldSeen[track.FieldAlbumName]; !ok {
+				selectedFields = append(selectedFields, track.FieldAlbumName)
+				fieldSeen[track.FieldAlbumName] = struct{}{}
+			}
+		case "albumImageURI":
+			if _, ok := fieldSeen[track.FieldAlbumImageURI]; !ok {
+				selectedFields = append(selectedFields, track.FieldAlbumImageURI)
+				fieldSeen[track.FieldAlbumImageURI] = struct{}{}
+			}
+		case "durationMs":
+			if _, ok := fieldSeen[track.FieldDurationMs]; !ok {
+				selectedFields = append(selectedFields, track.FieldDurationMs)
+				fieldSeen[track.FieldDurationMs] = struct{}{}
+			}
+		case "uri":
+			if _, ok := fieldSeen[track.FieldURI]; !ok {
+				selectedFields = append(selectedFields, track.FieldURI)
+				fieldSeen[track.FieldURI] = struct{}{}
 			}
 		case "id":
 		case "__typename":
@@ -47,19 +87,19 @@ func (s *SettingsQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 		}
 	}
 	if !unknownSeen {
-		s.Select(selectedFields...)
+		t.Select(selectedFields...)
 	}
 	return nil
 }
 
-type settingsPaginateArgs struct {
+type trackPaginateArgs struct {
 	first, last   *int
 	after, before *Cursor
-	opts          []SettingsPaginateOption
+	opts          []TrackPaginateOption
 }
 
-func newSettingsPaginateArgs(rv map[string]any) *settingsPaginateArgs {
-	args := &settingsPaginateArgs{}
+func newTrackPaginateArgs(rv map[string]any) *trackPaginateArgs {
+	args := &trackPaginateArgs{}
 	if rv == nil {
 		return args
 	}

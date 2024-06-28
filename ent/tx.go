@@ -12,8 +12,8 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
-	// Settings is the client for interacting with the Settings builders.
-	Settings *SettingsClient
+	// Track is the client for interacting with the Track builders.
+	Track *TrackClient
 
 	// lazily loaded.
 	client     *Client
@@ -145,7 +145,7 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
-	tx.Settings = NewSettingsClient(tx.config)
+	tx.Track = NewTrackClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.
@@ -155,7 +155,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: Settings.QueryXXX(), the query will be executed
+// applies a query, for example: Track.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

@@ -10,11 +10,12 @@ import (
 	"reflect"
 
 	"github.com/albe2669/spotify-viewer/ent/migrate"
+	"github.com/albe2669/spotify-viewer/ent/schema/pulid"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
-	"github.com/albe2669/spotify-viewer/ent/settings"
+	"github.com/albe2669/spotify-viewer/ent/track"
 )
 
 // Client is the client that holds all ent builders.
@@ -22,10 +23,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
-	// Settings is the client for interacting with the Settings builders.
-	Settings *SettingsClient
-	// additional fields for node api
-	tables tables
+	// Track is the client for interacting with the Track builders.
+	Track *TrackClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -37,7 +36,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
-	c.Settings = NewSettingsClient(c.config)
+	c.Track = NewTrackClient(c.config)
 }
 
 type (
@@ -128,9 +127,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:      ctx,
-		config:   cfg,
-		Settings: NewSettingsClient(cfg),
+		ctx:    ctx,
+		config: cfg,
+		Track:  NewTrackClient(cfg),
 	}, nil
 }
 
@@ -148,16 +147,16 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:      ctx,
-		config:   cfg,
-		Settings: NewSettingsClient(cfg),
+		ctx:    ctx,
+		config: cfg,
+		Track:  NewTrackClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Settings.
+//		Track.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -179,126 +178,126 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.Settings.Use(hooks...)
+	c.Track.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.Settings.Intercept(interceptors...)
+	c.Track.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
-	case *SettingsMutation:
-		return c.Settings.mutate(ctx, m)
+	case *TrackMutation:
+		return c.Track.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
 }
 
-// SettingsClient is a client for the Settings schema.
-type SettingsClient struct {
+// TrackClient is a client for the Track schema.
+type TrackClient struct {
 	config
 }
 
-// NewSettingsClient returns a client for the Settings from the given config.
-func NewSettingsClient(c config) *SettingsClient {
-	return &SettingsClient{config: c}
+// NewTrackClient returns a client for the Track from the given config.
+func NewTrackClient(c config) *TrackClient {
+	return &TrackClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `settings.Hooks(f(g(h())))`.
-func (c *SettingsClient) Use(hooks ...Hook) {
-	c.hooks.Settings = append(c.hooks.Settings, hooks...)
+// A call to `Use(f, g, h)` equals to `track.Hooks(f(g(h())))`.
+func (c *TrackClient) Use(hooks ...Hook) {
+	c.hooks.Track = append(c.hooks.Track, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `settings.Intercept(f(g(h())))`.
-func (c *SettingsClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Settings = append(c.inters.Settings, interceptors...)
+// A call to `Intercept(f, g, h)` equals to `track.Intercept(f(g(h())))`.
+func (c *TrackClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Track = append(c.inters.Track, interceptors...)
 }
 
-// Create returns a builder for creating a Settings entity.
-func (c *SettingsClient) Create() *SettingsCreate {
-	mutation := newSettingsMutation(c.config, OpCreate)
-	return &SettingsCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a Track entity.
+func (c *TrackClient) Create() *TrackCreate {
+	mutation := newTrackMutation(c.config, OpCreate)
+	return &TrackCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of Settings entities.
-func (c *SettingsClient) CreateBulk(builders ...*SettingsCreate) *SettingsCreateBulk {
-	return &SettingsCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of Track entities.
+func (c *TrackClient) CreateBulk(builders ...*TrackCreate) *TrackCreateBulk {
+	return &TrackCreateBulk{config: c.config, builders: builders}
 }
 
 // MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
 // a builder and applies setFunc on it.
-func (c *SettingsClient) MapCreateBulk(slice any, setFunc func(*SettingsCreate, int)) *SettingsCreateBulk {
+func (c *TrackClient) MapCreateBulk(slice any, setFunc func(*TrackCreate, int)) *TrackCreateBulk {
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
-		return &SettingsCreateBulk{err: fmt.Errorf("calling to SettingsClient.MapCreateBulk with wrong type %T, need slice", slice)}
+		return &TrackCreateBulk{err: fmt.Errorf("calling to TrackClient.MapCreateBulk with wrong type %T, need slice", slice)}
 	}
-	builders := make([]*SettingsCreate, rv.Len())
+	builders := make([]*TrackCreate, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
 		builders[i] = c.Create()
 		setFunc(builders[i], i)
 	}
-	return &SettingsCreateBulk{config: c.config, builders: builders}
+	return &TrackCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for Settings.
-func (c *SettingsClient) Update() *SettingsUpdate {
-	mutation := newSettingsMutation(c.config, OpUpdate)
-	return &SettingsUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for Track.
+func (c *TrackClient) Update() *TrackUpdate {
+	mutation := newTrackMutation(c.config, OpUpdate)
+	return &TrackUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *SettingsClient) UpdateOne(s *Settings) *SettingsUpdateOne {
-	mutation := newSettingsMutation(c.config, OpUpdateOne, withSettings(s))
-	return &SettingsUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *TrackClient) UpdateOne(t *Track) *TrackUpdateOne {
+	mutation := newTrackMutation(c.config, OpUpdateOne, withTrack(t))
+	return &TrackUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *SettingsClient) UpdateOneID(id int) *SettingsUpdateOne {
-	mutation := newSettingsMutation(c.config, OpUpdateOne, withSettingsID(id))
-	return &SettingsUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *TrackClient) UpdateOneID(id pulid.ID) *TrackUpdateOne {
+	mutation := newTrackMutation(c.config, OpUpdateOne, withTrackID(id))
+	return &TrackUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for Settings.
-func (c *SettingsClient) Delete() *SettingsDelete {
-	mutation := newSettingsMutation(c.config, OpDelete)
-	return &SettingsDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for Track.
+func (c *TrackClient) Delete() *TrackDelete {
+	mutation := newTrackMutation(c.config, OpDelete)
+	return &TrackDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *SettingsClient) DeleteOne(s *Settings) *SettingsDeleteOne {
-	return c.DeleteOneID(s.ID)
+func (c *TrackClient) DeleteOne(t *Track) *TrackDeleteOne {
+	return c.DeleteOneID(t.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *SettingsClient) DeleteOneID(id int) *SettingsDeleteOne {
-	builder := c.Delete().Where(settings.ID(id))
+func (c *TrackClient) DeleteOneID(id pulid.ID) *TrackDeleteOne {
+	builder := c.Delete().Where(track.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &SettingsDeleteOne{builder}
+	return &TrackDeleteOne{builder}
 }
 
-// Query returns a query builder for Settings.
-func (c *SettingsClient) Query() *SettingsQuery {
-	return &SettingsQuery{
+// Query returns a query builder for Track.
+func (c *TrackClient) Query() *TrackQuery {
+	return &TrackQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypeSettings},
+		ctx:    &QueryContext{Type: TypeTrack},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a Settings entity by its id.
-func (c *SettingsClient) Get(ctx context.Context, id int) (*Settings, error) {
-	return c.Query().Where(settings.ID(id)).Only(ctx)
+// Get returns a Track entity by its id.
+func (c *TrackClient) Get(ctx context.Context, id pulid.ID) (*Track, error) {
+	return c.Query().Where(track.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *SettingsClient) GetX(ctx context.Context, id int) *Settings {
+func (c *TrackClient) GetX(ctx context.Context, id pulid.ID) *Track {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -307,36 +306,36 @@ func (c *SettingsClient) GetX(ctx context.Context, id int) *Settings {
 }
 
 // Hooks returns the client hooks.
-func (c *SettingsClient) Hooks() []Hook {
-	return c.hooks.Settings
+func (c *TrackClient) Hooks() []Hook {
+	return c.hooks.Track
 }
 
 // Interceptors returns the client interceptors.
-func (c *SettingsClient) Interceptors() []Interceptor {
-	return c.inters.Settings
+func (c *TrackClient) Interceptors() []Interceptor {
+	return c.inters.Track
 }
 
-func (c *SettingsClient) mutate(ctx context.Context, m *SettingsMutation) (Value, error) {
+func (c *TrackClient) mutate(ctx context.Context, m *TrackMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&SettingsCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&TrackCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&SettingsUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&TrackUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&SettingsUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&TrackUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&SettingsDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&TrackDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown Settings mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown Track mutation op: %q", m.Op())
 	}
 }
 
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Settings []ent.Hook
+		Track []ent.Hook
 	}
 	inters struct {
-		Settings []ent.Interceptor
+		Track []ent.Interceptor
 	}
 )

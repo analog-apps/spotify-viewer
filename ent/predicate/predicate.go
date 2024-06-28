@@ -6,5 +6,5 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// Settings is the predicate function for settings builders.
-type Settings func(*sql.Selector)
+// Track is the predicate function for track builders.
+type Track func(*sql.Selector)

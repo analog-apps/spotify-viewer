@@ -9,16 +9,16 @@ import (
 	"github.com/albe2669/spotify-viewer/ent"
 )
 
-// The SettingsFunc type is an adapter to allow the use of ordinary
-// function as Settings mutator.
-type SettingsFunc func(context.Context, *ent.SettingsMutation) (ent.Value, error)
+// The TrackFunc type is an adapter to allow the use of ordinary
+// function as Track mutator.
+type TrackFunc func(context.Context, *ent.TrackMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f SettingsFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.SettingsMutation); ok {
+func (f TrackFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TrackMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SettingsMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TrackMutation", m)
 }
 
 // Condition is a hook condition function.

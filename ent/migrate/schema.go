@@ -8,21 +8,29 @@ import (
 )
 
 var (
-	// SettingsColumns holds the columns for the "settings" table.
-	SettingsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "key", Type: field.TypeString},
-		{Name: "value", Type: field.TypeString},
+	// TracksColumns holds the columns for the "tracks" table.
+	TracksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "track_id", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString},
+		{Name: "artists", Type: field.TypeJSON},
+		{Name: "artists_genres", Type: field.TypeJSON},
+		{Name: "album_name", Type: field.TypeString},
+		{Name: "album_image_uri", Type: field.TypeString},
+		{Name: "duration_ms", Type: field.TypeInt32},
+		{Name: "uri", Type: field.TypeString},
 	}
-	// SettingsTable holds the schema information for the "settings" table.
-	SettingsTable = &schema.Table{
-		Name:       "settings",
-		Columns:    SettingsColumns,
-		PrimaryKey: []*schema.Column{SettingsColumns[0]},
+	// TracksTable holds the schema information for the "tracks" table.
+	TracksTable = &schema.Table{
+		Name:       "tracks",
+		Columns:    TracksColumns,
+		PrimaryKey: []*schema.Column{TracksColumns[0]},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
-		SettingsTable,
+		TracksTable,
 	}
 )
 

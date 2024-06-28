@@ -70,8 +70,20 @@ type Query {
     ids: [ID!]!
   ): [Node]!
 }
-type Settings implements Node {
+"""
+The builtin Time type
+"""
+scalar Time
+type Track implements Node {
   id: ID!
-  key: String!
-  value: String!
+  createdAt: Time!
+  updatedAt: Time!
+  trackID: String!
+  name: String!
+  artists: [String!]!
+  artistsGenres: [String!]!
+  albumName: String!
+  albumImageURI: String!
+  durationMs: Int!
+  uri: String!
 }

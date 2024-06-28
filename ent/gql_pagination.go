@@ -11,14 +11,15 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/errcode"
-	"github.com/albe2669/spotify-viewer/ent/settings"
+	"github.com/albe2669/spotify-viewer/ent/schema/pulid"
+	"github.com/albe2669/spotify-viewer/ent/track"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
 // Common entgql types.
 type (
-	Cursor         = entgql.Cursor[int]
-	PageInfo       = entgql.PageInfo[int]
+	Cursor         = entgql.Cursor[pulid.ID]
+	PageInfo       = entgql.PageInfo[pulid.ID]
 	OrderDirection = entgql.OrderDirection
 )
 
@@ -95,20 +96,20 @@ func paginateLimit(first, last *int) int {
 	return limit
 }
 
-// SettingsEdge is the edge representation of Settings.
-type SettingsEdge struct {
-	Node   *Settings `json:"node"`
-	Cursor Cursor    `json:"cursor"`
+// TrackEdge is the edge representation of Track.
+type TrackEdge struct {
+	Node   *Track `json:"node"`
+	Cursor Cursor `json:"cursor"`
 }
 
-// SettingsConnection is the connection containing edges to Settings.
-type SettingsConnection struct {
-	Edges      []*SettingsEdge `json:"edges"`
-	PageInfo   PageInfo        `json:"pageInfo"`
-	TotalCount int             `json:"totalCount"`
+// TrackConnection is the connection containing edges to Track.
+type TrackConnection struct {
+	Edges      []*TrackEdge `json:"edges"`
+	PageInfo   PageInfo     `json:"pageInfo"`
+	TotalCount int          `json:"totalCount"`
 }
 
-func (c *SettingsConnection) build(nodes []*Settings, pager *settingsPager, after *Cursor, first *int, before *Cursor, last *int) {
+func (c *TrackConnection) build(nodes []*Track, pager *trackPager, after *Cursor, first *int, before *Cursor, last *int) {
 	c.PageInfo.HasNextPage = before != nil
 	c.PageInfo.HasPreviousPage = after != nil
 	if first != nil && *first+1 == len(nodes) {
@@ -118,21 +119,21 @@ func (c *SettingsConnection) build(nodes []*Settings, pager *settingsPager, afte
 		c.PageInfo.HasPreviousPage = true
 		nodes = nodes[:len(nodes)-1]
 	}
-	var nodeAt func(int) *Settings
+	var nodeAt func(int) *Track
 	if last != nil {
 		n := len(nodes) - 1
-		nodeAt = func(i int) *Settings {
+		nodeAt = func(i int) *Track {
 			return nodes[n-i]
 		}
 	} else {
-		nodeAt = func(i int) *Settings {
+		nodeAt = func(i int) *Track {
 			return nodes[i]
 		}
 	}
-	c.Edges = make([]*SettingsEdge, len(nodes))
+	c.Edges = make([]*TrackEdge, len(nodes))
 	for i := range nodes {
 		node := nodeAt(i)
-		c.Edges[i] = &SettingsEdge{
+		c.Edges[i] = &TrackEdge{
 			Node:   node,
 			Cursor: pager.toCursor(node),
 		}
@@ -146,87 +147,87 @@ func (c *SettingsConnection) build(nodes []*Settings, pager *settingsPager, afte
 	}
 }
 
-// SettingsPaginateOption enables pagination customization.
-type SettingsPaginateOption func(*settingsPager) error
+// TrackPaginateOption enables pagination customization.
+type TrackPaginateOption func(*trackPager) error
 
-// WithSettingsOrder configures pagination ordering.
-func WithSettingsOrder(order *SettingsOrder) SettingsPaginateOption {
+// WithTrackOrder configures pagination ordering.
+func WithTrackOrder(order *TrackOrder) TrackPaginateOption {
 	if order == nil {
-		order = DefaultSettingsOrder
+		order = DefaultTrackOrder
 	}
 	o := *order
-	return func(pager *settingsPager) error {
+	return func(pager *trackPager) error {
 		if err := o.Direction.Validate(); err != nil {
 			return err
 		}
 		if o.Field == nil {
-			o.Field = DefaultSettingsOrder.Field
+			o.Field = DefaultTrackOrder.Field
 		}
 		pager.order = &o
 		return nil
 	}
 }
 
-// WithSettingsFilter configures pagination filter.
-func WithSettingsFilter(filter func(*SettingsQuery) (*SettingsQuery, error)) SettingsPaginateOption {
-	return func(pager *settingsPager) error {
+// WithTrackFilter configures pagination filter.
+func WithTrackFilter(filter func(*TrackQuery) (*TrackQuery, error)) TrackPaginateOption {
+	return func(pager *trackPager) error {
 		if filter == nil {
-			return errors.New("SettingsQuery filter cannot be nil")
+			return errors.New("TrackQuery filter cannot be nil")
 		}
 		pager.filter = filter
 		return nil
 	}
 }
 
-type settingsPager struct {
+type trackPager struct {
 	reverse bool
-	order   *SettingsOrder
-	filter  func(*SettingsQuery) (*SettingsQuery, error)
+	order   *TrackOrder
+	filter  func(*TrackQuery) (*TrackQuery, error)
 }
 
-func newSettingsPager(opts []SettingsPaginateOption, reverse bool) (*settingsPager, error) {
-	pager := &settingsPager{reverse: reverse}
+func newTrackPager(opts []TrackPaginateOption, reverse bool) (*trackPager, error) {
+	pager := &trackPager{reverse: reverse}
 	for _, opt := range opts {
 		if err := opt(pager); err != nil {
 			return nil, err
 		}
 	}
 	if pager.order == nil {
-		pager.order = DefaultSettingsOrder
+		pager.order = DefaultTrackOrder
 	}
 	return pager, nil
 }
 
-func (p *settingsPager) applyFilter(query *SettingsQuery) (*SettingsQuery, error) {
+func (p *trackPager) applyFilter(query *TrackQuery) (*TrackQuery, error) {
 	if p.filter != nil {
 		return p.filter(query)
 	}
 	return query, nil
 }
 
-func (p *settingsPager) toCursor(s *Settings) Cursor {
-	return p.order.Field.toCursor(s)
+func (p *trackPager) toCursor(t *Track) Cursor {
+	return p.order.Field.toCursor(t)
 }
 
-func (p *settingsPager) applyCursors(query *SettingsQuery, after, before *Cursor) (*SettingsQuery, error) {
+func (p *trackPager) applyCursors(query *TrackQuery, after, before *Cursor) (*TrackQuery, error) {
 	direction := p.order.Direction
 	if p.reverse {
 		direction = direction.Reverse()
 	}
-	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultSettingsOrder.Field.column, p.order.Field.column, direction) {
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultTrackOrder.Field.column, p.order.Field.column, direction) {
 		query = query.Where(predicate)
 	}
 	return query, nil
 }
 
-func (p *settingsPager) applyOrder(query *SettingsQuery) *SettingsQuery {
+func (p *trackPager) applyOrder(query *TrackQuery) *TrackQuery {
 	direction := p.order.Direction
 	if p.reverse {
 		direction = direction.Reverse()
 	}
 	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
-	if p.order.Field != DefaultSettingsOrder.Field {
-		query = query.Order(DefaultSettingsOrder.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultTrackOrder.Field {
+		query = query.Order(DefaultTrackOrder.Field.toTerm(direction.OrderTermOption()))
 	}
 	if len(query.ctx.Fields) > 0 {
 		query.ctx.AppendFieldOnce(p.order.Field.column)
@@ -234,7 +235,7 @@ func (p *settingsPager) applyOrder(query *SettingsQuery) *SettingsQuery {
 	return query
 }
 
-func (p *settingsPager) orderExpr(query *SettingsQuery) sql.Querier {
+func (p *trackPager) orderExpr(query *TrackQuery) sql.Querier {
 	direction := p.order.Direction
 	if p.reverse {
 		direction = direction.Reverse()
@@ -244,33 +245,33 @@ func (p *settingsPager) orderExpr(query *SettingsQuery) sql.Querier {
 	}
 	return sql.ExprFunc(func(b *sql.Builder) {
 		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
-		if p.order.Field != DefaultSettingsOrder.Field {
-			b.Comma().Ident(DefaultSettingsOrder.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultTrackOrder.Field {
+			b.Comma().Ident(DefaultTrackOrder.Field.column).Pad().WriteString(string(direction))
 		}
 	})
 }
 
-// Paginate executes the query and returns a relay based cursor connection to Settings.
-func (s *SettingsQuery) Paginate(
+// Paginate executes the query and returns a relay based cursor connection to Track.
+func (t *TrackQuery) Paginate(
 	ctx context.Context, after *Cursor, first *int,
-	before *Cursor, last *int, opts ...SettingsPaginateOption,
-) (*SettingsConnection, error) {
+	before *Cursor, last *int, opts ...TrackPaginateOption,
+) (*TrackConnection, error) {
 	if err := validateFirstLast(first, last); err != nil {
 		return nil, err
 	}
-	pager, err := newSettingsPager(opts, last != nil)
+	pager, err := newTrackPager(opts, last != nil)
 	if err != nil {
 		return nil, err
 	}
-	if s, err = pager.applyFilter(s); err != nil {
+	if t, err = pager.applyFilter(t); err != nil {
 		return nil, err
 	}
-	conn := &SettingsConnection{Edges: []*SettingsEdge{}}
+	conn := &TrackConnection{Edges: []*TrackEdge{}}
 	ignoredEdges := !hasCollectedField(ctx, edgesField)
 	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
 		hasPagination := after != nil || first != nil || before != nil || last != nil
 		if hasPagination || ignoredEdges {
-			c := s.Clone()
+			c := t.Clone()
 			c.ctx.Fields = nil
 			if conn.TotalCount, err = c.Count(ctx); err != nil {
 				return nil, err
@@ -282,20 +283,20 @@ func (s *SettingsQuery) Paginate(
 	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
 		return conn, nil
 	}
-	if s, err = pager.applyCursors(s, after, before); err != nil {
+	if t, err = pager.applyCursors(t, after, before); err != nil {
 		return nil, err
 	}
 	limit := paginateLimit(first, last)
 	if limit != 0 {
-		s.Limit(limit)
+		t.Limit(limit)
 	}
 	if field := collectedField(ctx, edgesField, nodeField); field != nil {
-		if err := s.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+		if err := t.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
 			return nil, err
 		}
 	}
-	s = pager.applyOrder(s)
-	nodes, err := s.All(ctx)
+	t = pager.applyOrder(t)
+	nodes, err := t.All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -303,43 +304,43 @@ func (s *SettingsQuery) Paginate(
 	return conn, nil
 }
 
-// SettingsOrderField defines the ordering field of Settings.
-type SettingsOrderField struct {
-	// Value extracts the ordering value from the given Settings.
-	Value    func(*Settings) (ent.Value, error)
+// TrackOrderField defines the ordering field of Track.
+type TrackOrderField struct {
+	// Value extracts the ordering value from the given Track.
+	Value    func(*Track) (ent.Value, error)
 	column   string // field or computed.
-	toTerm   func(...sql.OrderTermOption) settings.OrderOption
-	toCursor func(*Settings) Cursor
+	toTerm   func(...sql.OrderTermOption) track.OrderOption
+	toCursor func(*Track) Cursor
 }
 
-// SettingsOrder defines the ordering of Settings.
-type SettingsOrder struct {
-	Direction OrderDirection      `json:"direction"`
-	Field     *SettingsOrderField `json:"field"`
+// TrackOrder defines the ordering of Track.
+type TrackOrder struct {
+	Direction OrderDirection   `json:"direction"`
+	Field     *TrackOrderField `json:"field"`
 }
 
-// DefaultSettingsOrder is the default ordering of Settings.
-var DefaultSettingsOrder = &SettingsOrder{
+// DefaultTrackOrder is the default ordering of Track.
+var DefaultTrackOrder = &TrackOrder{
 	Direction: entgql.OrderDirectionAsc,
-	Field: &SettingsOrderField{
-		Value: func(s *Settings) (ent.Value, error) {
-			return s.ID, nil
+	Field: &TrackOrderField{
+		Value: func(t *Track) (ent.Value, error) {
+			return t.ID, nil
 		},
-		column: settings.FieldID,
-		toTerm: settings.ByID,
-		toCursor: func(s *Settings) Cursor {
-			return Cursor{ID: s.ID}
+		column: track.FieldID,
+		toTerm: track.ByID,
+		toCursor: func(t *Track) Cursor {
+			return Cursor{ID: t.ID}
 		},
 	},
 }
 
-// ToEdge converts Settings into SettingsEdge.
-func (s *Settings) ToEdge(order *SettingsOrder) *SettingsEdge {
+// ToEdge converts Track into TrackEdge.
+func (t *Track) ToEdge(order *TrackOrder) *TrackEdge {
 	if order == nil {
-		order = DefaultSettingsOrder
+		order = DefaultTrackOrder
 	}
-	return &SettingsEdge{
-		Node:   s,
-		Cursor: order.Field.toCursor(s),
+	return &TrackEdge{
+		Node:   t,
+		Cursor: order.Field.toCursor(t),
 	}
 }
